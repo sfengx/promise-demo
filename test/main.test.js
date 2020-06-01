@@ -96,7 +96,8 @@ it('test catch of Error', () => {
     throw new Error('12');
   });
   p.catch(error => {
-    expect(error).toBe(1);
+    console.log('test catch of Error => catch');
+    expect(error.message).toBe('12');
   });
   return new Promise((resolve) => {
     setTimeout(() => {
