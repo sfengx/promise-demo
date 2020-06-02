@@ -24,5 +24,6 @@ module.exports = {
         "import/extensions": "off",
         "no-unused-vars": "off",
         "prefer-const": "off",
+        "no-else-return": "off"
     },
 };

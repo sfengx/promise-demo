@@ -1,27 +1,26 @@
 interface PPolyfill {
   status: string,
-  reason: any,
-  result: any,
-  thenCallbackQueue: Array<any>,
+  value: any,
+  thenCallback: any,
   catchCallback: any,
   finallyCallback: any,
 }
 
 class PromisePolyfill implements PPolyfill {
-  public status: string; // PENDING FULFILLED FAILED
+  public status: string; // pending resolved rejected
 
-  public reason: any; // 拒绝原因
+  public value: any; // 结果
 
-  public result: any; // 结果
-
-  public thenCallbackQueue: Array<any>;
+  public thenCallback: any;
 
   public catchCallback: any;
 
   public finallyCallback: any;
 
+  public next: any; // 下一个promise
+
   constructor(start: any) {
-    this.thenCallbackQueue = [];
+    this.status = 'pending';
     try {
       start(this.resolve.bind(this), this.reject.bind(this));
     } catch (error) {
@@ -29,24 +28,15 @@ class PromisePolyfill implements PPolyfill {
     }
   }
 
-  isFailed(): boolean {
-    return this.status === 'FAILED';
-  }
-
-  isFulfilled(): boolean {
-    return this.status === 'FULFILLED';
-  }
-
   resolve(result: any) {
-    let thenResult: any;
-    thenResult = result;
-    // if (this.thenCallbackQueue.length <= 0) {
-    //   this.result = result; // 缓存结果
-    // }
-    if (this.thenCallbackQueue) {
-      this.thenCallbackQueue.forEach((thenCallback: any) => {
-        thenResult = thenCallback(thenResult);
-      });
+    // 状态只能改变一次
+    if (this.status !== 'pending') {
+      return;
+    }
+    this.status = 'resolved';
+    this.value = result; // 缓存结果
+    if (this.thenCallback) {
+      this.thenCallback(result);
     }
     if (this.finallyCallback) {
       this.finallyCallback();
@@ -54,39 +44,65 @@ class PromisePolyfill implements PPolyfill {
   }
 
   reject(error: any) {
-    this.status = 'FAILED';
-    this.reason = error;
+    // 状态只能改变一次
+    if (this.status !== 'pending') {
+      return;
+    }
+    this.status = 'rejected';
+    this.value = error;
     if (this.catchCallback) {
-      this.reason = this.catchCallback(error);
+      this.catchCallback(error);
+      // 异常冒泡
+    } else if (this.next) {
+      this.next.reject(error);
     }
     if (this.finallyCallback) {
       this.finallyCallback();
     }
   }
 
-  then(callback: any) {
-    this.thenCallbackQueue.push(callback);
-    // 如果已经是完成状态立即执行
-    if (this.isFulfilled() === true) {
-      this.thenCallbackQueue = [];
-      this.thenCallbackQueue.push(callback);
-      this.resolve(this.result);
+  then(onResolved: any, onRejected: any) {
+    this.next = new PromisePolyfill(() => {});
+    this.thenCallback = (result) => {
+      let thenResult;
+      try {
+        thenResult = onResolved(result);
+        this.next.resolve(thenResult);
+      } catch (error) {
+        this.next.reject(error);
+      }
+    };
+    if (onRejected) {
+      this.catch(onRejected);
     }
-    return this;
+    // 如果已经是完成状态立即执行
+    if (this.status === 'resolved') {
+      this.resolve(this.value);
+    }
+    return this.next;
   }
 
-  catch(callback: any) {
-    this.catchCallback = callback;
-    // 如果已经是拒绝状态立即执行
-    if (this.isFailed() === true) {
-      this.reject(this.reason);
+  catch(onRejected: any) {
+    this.next = new PromisePolyfill(() => {});
+    this.catchCallback = (error) => {
+      let catchResult = onRejected(error);
+      this.next.resolve(catchResult);
+    };
+    // 如果已经是完成状态立即执行
+    if (this.status === 'rejected') {
+      this.reject(this.value);
     }
-    return this;
+    return this.next;
   }
 
   finally(callback: any) {
+    this.next = new PromisePolyfill(() => {});
     this.finallyCallback = callback;
-    return this; // 是否返回
+    // 如果已经不是挂起状态立即执行
+    if (this.status !== 'pending') {
+      this.finallyCallback();
+    }
+    return this.next;
   }
 }
 
