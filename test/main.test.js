@@ -1,34 +1,52 @@
 import PromisePolyfill from '../debug/bundle';
 
-const sleep = (result = true, time = 300) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (result) {
-        resolve();
-      } else {
-        reject();
-      }
-    }, time)
-  });
+class Done {
+  constructor() {
+    this.result = {};
+  }
+  watch(run) {
+    try {
+      run();
+      this.result.error = 0;
+    } catch (error) {
+      this.result.error = error;
+    }
+  }
+  wait(time = 30) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (this.result.error === 0) {
+          resolve();
+        } else {
+          reject(this.result.error);
+        }
+      }, time)
+    });
+  }
 }
 
-it('test then', () => {
-  let p = new PromisePolyfill((resolve, reject) => {
-    setTimeout(() => {
-      resolve(1);
-    }, 100);
-  });
-  p.then(data => {
-    expect(data).toBe(1);
-  });
-  return sleep();
+const done = new Done();
+
+afterEach(() => {
+  return done.wait();
 });
 
-it('test chained then', () => {
+test('test then', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       resolve(1);
-    }, 100);
+    }, 10);
+  });
+  p.then(data => {
+    done.watch(() => expect(data).toBe(1));
+  });
+});
+
+test('test chained then', () => {
+  let p = new PromisePolyfill((resolve, reject) => {
+    setTimeout(() => {
+      resolve(1);
+    }, 10);
   });
   let count = 0;
   p.then(data => {
@@ -39,80 +57,97 @@ it('test chained then', () => {
     count = count + data;
     expect(data).toBe(2);
   }).then(() => {
-    expect(count).toBe(3);
+    done.watch(() => expect(count).toBe(3));
   });
-  return sleep();
 });
 
-it('test more then', () => {
+test('test multiple then', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       resolve(1);
-    }, 100);
+    }, 10);
   });
   let count = 0;
   p.then(data => {
-    console.log('*');
     count = count + 1;
-    expect(data).toBe(1);
+    done.watch(expect(data).toBe(1));
   });
   p.then(data => {
-    console.log('**');
     count = count + 2;
-    expect(count).toBe(4);
+    done.watch(() => expect(count).toBe(3));
   });
-  return sleep();
+  p.then(data => {
+    count = count + 3;
+    done.watch(() => expect(count).toBe(6));
+  });
 })
 
-it('test finally', () => {
+test('test finally', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       reject(1);
-    }, 100);
+    }, 10);
   });
   p.finally(error => {
-    expect(error).toBe(undefined);
+    done.watch(() => expect(error).toBe(undefined));
   });
-  return sleep();
 });
 
-it('test catch', () => {
+test('test multiple finally', () => {
+  let p = new PromisePolyfill((resolve, reject) => {
+    setTimeout(() => {
+      resolve(1);
+    }, 10);
+  });
+  let count = 0;
+  p.finally(data => {
+    count = count + 1;
+    done.watch(expect(data).toBe(undefined));
+  });
+  p.finally(data => {
+    count = count + 2;
+    done.watch(() => expect(count).toBe(3));
+  });
+  p.finally(data => {
+    count = count + 3;
+    done.watch(() => expect(count).toBe(6));
+  });
+})
+
+test('test catch', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       reject(1);
-    }, 100);
+    }, 10);
   });
   p.catch(error => {
-    expect(error).toBe(1);
+    done.watch(() => expect(error).toBe(1));
   });
-  return sleep();
 });
 
-it('test catch after then', () => {
+test('test catch after then', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       reject(2);
-    }, 100);
+    }, 10);
   });
   p.then(data => {
     
   }).catch(error => {
-    expect(error).toBe(2);
+    done.watch(() => expect(error).toBe(2));
   });
-  return sleep();
 });
 
-it('test catch of Error', () => {
+test('test catch of Error', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     throw new Error('12');
   });
   p.catch(error => {
-    expect(error.message).toBe('12');
+    done.watch(() => expect(error.message).toBe('12'));
   });
-  return sleep();
 });
 
-it('test change not pending status', () => {
+test('test change not pending status', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     resolve(1);
     setTimeout(() => {
@@ -120,27 +155,25 @@ it('test change not pending status', () => {
     });
   });
   setTimeout(() => {
-    expect(p.status).toBe('resolved');
+    done.watch(() => expect(p.status).toBe('resolved'));
   }, 10);
-  return sleep();
 });
 
-it('test chained catch after then', () => {
+test('test chained catch after then', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       reject(1);
-    }, 100);
+    }, 10);
   });
   p.then(data => {
-    expect(data).toBe(undefined);
+    done.watch(() => expect(data).toBe(undefined));
   }).catch(error => {
-    expect(error).toBe(1);
+    done.watch(() => expect(error).toBe(1));
     return 2;
   }).then(data => {
-    expect(data).toBe(2);
+    done.watch(() => expect(data).toBe(2));
     throw new Error('3');
   }).catch(error => {
-    expect(error.message).toBe('3');
+    done.watch(() => expect(error.message).toBe('3'));
   });
-  return sleep();
 })
