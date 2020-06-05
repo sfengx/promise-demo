@@ -1,23 +1,23 @@
 interface PPolyfill {
-  status: string,
-  value: any,
-  thenCallbackQueue: Array<any>,
-  catchCallbackQueue: Array<any>,
-  finallyCallbackQueue: Array<any>,
+  resolve: (result: any) => void,
+  reject: (error: any) => void,
+  then: (onResolved: any, onRejected: any) => PPolyfill,
+  catch: (onRejected: any) => PPolyfill,
+  finally: (callback: any) => PPolyfill,
 }
 
 class PromisePolyfill implements PPolyfill {
-  public status: string; // pending resolved rejected
+  private status: string; // pending resolved rejected
 
-  public value: any; // 结果
+  private value: any; // 结果
 
-  public thenCallbackQueue: Array<any>;
+  private thenCallbackQueue: Array<any>;
 
-  public catchCallbackQueue: Array<any>;
+  private catchCallbackQueue: Array<any>;
 
-  public finallyCallbackQueue: Array<any>;
+  private finallyCallbackQueue: Array<any>;
 
-  public next: any; // 链式promise
+  private next: any; // 链式promise
 
   constructor(start: any) {
     this.status = 'pending';
@@ -32,7 +32,7 @@ class PromisePolyfill implements PPolyfill {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  queueMicrotask(callback: any) :void {
+  private queueMicrotask(callback: any) :void {
     setTimeout(() => {
       callback();
     }, 0);

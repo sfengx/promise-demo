@@ -192,7 +192,7 @@ test('test chained catch after then', () => {
   });
 });
 
-test.only('test microtask', () => {
+test('test microtask', () => {
   let count = 0;
   let p = new PromisePolyfill((resolve) => {
     count = count + 1;
