@@ -1,5 +1,5 @@
 interface PPolyfill {
-  then: (onResolved: any, onRejected: any) => PPolyfill,
+  then: (onResolved: any, onRejected?: any) => PPolyfill,
   catch: (onRejected: any) => PPolyfill,
   finally: (onFinally: any) => PPolyfill,
 }
@@ -80,7 +80,7 @@ class PromisePolyfill implements PPolyfill {
     });
   }
 
-  then(onResolved: any, onRejected: any): PPolyfill {
+  then(onResolved: any, onRejected?: any): PPolyfill {
     this.next = new PromisePolyfill(() => { });
     // 结果链式传递
     const callback = (value: any) => {
@@ -142,16 +142,39 @@ class PromisePolyfill implements PPolyfill {
     return new this((resolve: any, reject: any) => reject(reason));
   }
 
-  // TODO
-  // eslint-disable-next-line class-methods-use-this
   static all(promises: Array<PPolyfill>): PPolyfill {
-    return new PromisePolyfill(() => { });
+    const results = [];
+    return new this((resolve: any, reject: any) => {
+      promises.forEach((p, index) => {
+        p.then((value: any) => {
+          results[index] = value;
+          if (results.length === promises.length) {
+            resolve(results);
+          }
+        }).catch((reason: any) => {
+          reject(reason);
+        });
+      });
+    });
   }
 
-  // TODO
-  // eslint-disable-next-line class-methods-use-this
-  static race(): PPolyfill {
-    return new PromisePolyfill(() => { });
+  static race(promises: Array<PPolyfill>): PPolyfill {
+    let done = false;
+    return new this((resolve: any, reject: any) => {
+      promises.forEach((p, index) => {
+        p.then((value: any) => {
+          if (done === false) {
+            resolve(value);
+            done = true;
+          }
+        }).catch((reason: any) => {
+          if (done === false) {
+            reject(reason);
+            done = true;
+          }
+        });
+      });
+    });
   }
 }
 

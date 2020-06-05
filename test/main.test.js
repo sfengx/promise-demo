@@ -221,3 +221,51 @@ test('test reject', () => {
     done.watch(() => expect(data).toBe(1));
   });
 });
+
+test('test then after all', () => {
+  let p1 = new PromisePolyfill(resolve => {
+    setTimeout(resolve, 10, '1');
+  });
+  let p2 = new PromisePolyfill(resolve => {
+    setTimeout(resolve, 20, '2');
+  });
+  PromisePolyfill.all([p1, p2]).then(data => {
+    done.watch(() => expect(data.toString()).toBe('1,2'));
+  });
+});
+
+test('test catch after all', () => {
+  let p1 = new PromisePolyfill((resolve, reject) => {
+    setTimeout(reject, 10, '1');
+  });
+  let p2 = new PromisePolyfill(resolve => {
+    setTimeout(resolve, 20, '2');
+  });
+  PromisePolyfill.all([p1, p2]).catch(data => {
+    done.watch(() => expect(data.toString()).toBe('1'));
+  });
+});
+
+test('test then after race', () => {
+  let p1 = new PromisePolyfill((resolve, reject) => {
+    setTimeout(resolve, 20, '1');
+  });
+  let p2 = new PromisePolyfill(resolve => {
+    setTimeout(resolve, 10, '2');
+  });
+  PromisePolyfill.race([p1, p2]).then(data => {
+    done.watch(() => expect(data.toString()).toBe('2'));
+  });
+});
+
+test('test catch after race', () => {
+  let p1 = new PromisePolyfill((resolve, reject) => {
+    setTimeout(reject, 10, '1');
+  });
+  let p2 = new PromisePolyfill(resolve => {
+    setTimeout(resolve, 20, '2');
+  });
+  PromisePolyfill.race([p1, p2]).catch(data => {
+    done.watch(() => expect(data.toString()).toBe('1'));
+  });
+});
