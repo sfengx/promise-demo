@@ -1,9 +1,7 @@
 interface PPolyfill {
-  resolve: (result: any) => void,
-  reject: (error: any) => void,
   then: (onResolved: any, onRejected: any) => PPolyfill,
   catch: (onRejected: any) => PPolyfill,
-  finally: (callback: any) => PPolyfill,
+  finally: (onFinally: any) => PPolyfill,
 }
 
 class PromisePolyfill implements PPolyfill {
@@ -19,119 +17,141 @@ class PromisePolyfill implements PPolyfill {
 
   private next: any; // 链式promise
 
-  constructor(start: any) {
+  constructor(executor: any) {
     this.status = 'pending';
     this.thenCallbackQueue = [];
     this.catchCallbackQueue = [];
     this.finallyCallbackQueue = [];
     try {
-      start(this.resolve.bind(this), this.reject.bind(this));
+      executor(this.$resolve.bind(this), this.$reject.bind(this));
     } catch (error) {
-      this.reject.call(this, error);
+      this.$reject.call(this, error);
     }
   }
 
   // eslint-disable-next-line class-methods-use-this
-  private queueMicrotask(callback: any) :void {
+  private $queueMicrotask(callback: any): void {
     setTimeout(() => {
       callback();
     }, 0);
   }
 
-  resolve(result: any): void {
-    this.queueMicrotask(() => {
-      // 状态只能改变一次
-      if (this.status === 'pending') {
-        this.status = 'resolved';
-        this.value = result; // 缓存结果
-      }
+  private $resolve(value: any): void {
+    // 状态只能改变一次
+    if (this.status === 'pending') {
+      this.status = 'resolved';
+      this.value = value; // 缓存结果
+    }
+    this.$queueMicrotask(() => {
       // then
-      this.thenCallbackQueue.forEach((thenCallback: any) => {
-        thenCallback(result);
+      this.thenCallbackQueue.forEach((callback: any) => {
+        callback(value);
       });
       this.thenCallbackQueue = [];
       // finally
-      this.finallyCallbackQueue.forEach((finallyCallback: any) => {
-        finallyCallback();
+      this.finallyCallbackQueue.forEach((callback: any) => {
+        callback();
       });
       this.finallyCallbackQueue = [];
     });
   }
 
-  reject(error: any): void {
-    this.queueMicrotask(() => {
-      // 状态只能改变一次
-      if (this.status === 'pending') {
-        this.status = 'rejected';
-        this.value = error;
-      }
+  private $reject(reason: any): void {
+    // 状态只能改变一次
+    if (this.status === 'pending') {
+      this.status = 'rejected';
+      this.value = reason;
+    }
+    this.$queueMicrotask(() => {
       // catch
       if (this.catchCallbackQueue.length > 0) {
-        this.catchCallbackQueue.forEach((catchCallback: any) => {
-          catchCallback(error);
+        this.catchCallbackQueue.forEach((callback: any) => {
+          callback(reason);
         });
         // 异常冒泡
       } else if (this.next) {
-        this.next.reject(error);
+        this.next.$reject(reason);
       }
       // finally
-      this.finallyCallbackQueue.forEach((finallyCallback: any) => {
-        finallyCallback();
+      this.finallyCallbackQueue.forEach((callback: any) => {
+        callback();
       });
       this.finallyCallbackQueue = [];
     });
   }
 
   then(onResolved: any, onRejected: any): PPolyfill {
-    this.next = new PromisePolyfill(() => {});
+    this.next = new PromisePolyfill(() => { });
     // 结果链式传递
-    const thenCallback = (result) => {
-      let thenResult;
+    const callback = (value: any) => {
+      let result;
       try {
-        thenResult = onResolved(result);
-        this.next.resolve(thenResult);
+        result = onResolved(value);
+        this.next.$resolve(result);
       } catch (error) {
-        this.next.reject(error);
+        this.next.$reject(error);
       }
     };
-    this.thenCallbackQueue.push(thenCallback);
+    this.thenCallbackQueue.push(callback);
     if (onRejected) {
       this.catch(onRejected);
     }
     // 如果已经是完成状态立即执行
     if (this.status === 'resolved') {
-      this.resolve(this.value);
+      this.$resolve(this.value);
     }
     return this.next;
   }
 
   catch(onRejected: any): PPolyfill {
-    this.next = new PromisePolyfill(() => {});
-    const catchCallback = (error) => {
-      let catchResult;
+    this.next = new PromisePolyfill(() => { });
+    const callback = (reason: any) => {
+      let result;
       try {
-        catchResult = onRejected(error);
-        this.next.resolve(catchResult);
-      } catch (rejectedError) {
-        this.next.reject(rejectedError);
+        result = onRejected(reason);
+        this.next.$resolve(result);
+      } catch (error) {
+        this.next.$reject(error);
       }
     };
-    this.catchCallbackQueue.push(catchCallback);
+    this.catchCallbackQueue.push(callback);
     // 如果已经是完成状态立即执行
     if (this.status === 'rejected') {
-      this.reject(this.value);
+      this.$reject(this.value);
     }
     return this.next;
   }
 
-  finally(callback: any): PPolyfill {
-    this.next = new PromisePolyfill(() => {});
-    this.finallyCallbackQueue.push(callback);
+  finally(onFinally: any): PPolyfill {
+    this.next = new PromisePolyfill(() => { });
+    this.finallyCallbackQueue.push(onFinally);
     // 如果已经不是挂起状态立即执行
     if (this.status !== 'pending') {
-      callback();
+      this.$queueMicrotask(() => {
+        onFinally();
+      });
     }
     return this.next;
+  }
+
+  static resolve(value: any): PPolyfill {
+    return new this((resolve: any, reject: any) => resolve(value));
+  }
+
+  static reject(reason: any): PPolyfill {
+    return new this((resolve: any, reject: any) => reject(reason));
+  }
+
+  // TODO
+  // eslint-disable-next-line class-methods-use-this
+  static all(promises: Array<PPolyfill>): PPolyfill {
+    return new PromisePolyfill(() => { });
+  }
+
+  // TODO
+  // eslint-disable-next-line class-methods-use-this
+  static race(): PPolyfill {
+    return new PromisePolyfill(() => { });
   }
 }
 

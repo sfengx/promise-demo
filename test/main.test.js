@@ -207,3 +207,17 @@ test('test microtask', () => {
   count = count + 2;
   done.watch(() => expect(count).toBe(3));
 });
+
+test('test resolve', () => {
+  let p = PromisePolyfill.resolve(1);
+  p.then(data => {
+    done.watch(() => expect(data).toBe(1));
+  });
+});
+
+test('test reject', () => {
+  let p = PromisePolyfill.reject(1);
+  p.catch(data => {
+    done.watch(() => expect(data).toBe(1));
+  });
+});
