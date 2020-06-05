@@ -1,9 +1,10 @@
-# library模板
+# promise初探
 
-# 功能
+完成promise的基本功能
 
-- 优化打包：rollup
-- 转义ES5：babel
-- 单元测试：jest
-- 类型验证：typescript
-- 代码规范：eslint
+- resolve、reject的api
+- 异步调用
+- then、catch、finally的api
+- 链式调用
+- 状态只能改变一次
+- 异常冒泡
