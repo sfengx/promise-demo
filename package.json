@@ -4,8 +4,9 @@
   "description": "A template of library",
   "main": "dist/bundle.js",
   "scripts": {
-    "build": "node ./scripts/rollup/build.js",
-    "build:debug": "node ./scripts/rollup/build.js",
+    "build": "npm run build:prod",
+    "build:prod": "node ./scripts/rollup/build.js --env.PACKAGE_ENV=prod",
+    "build:debug": "node ./scripts/rollup/build.js --env.PACKAGE_ENV=debug",
     "lint": "eslint ./src/*.ts",
     "lint:fix": "eslint ./src/*.ts --fix",
     "lint:type": "tsc -p ./scripts/typescript/tsconfig.json",

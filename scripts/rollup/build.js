@@ -1,9 +1,31 @@
 const path = require('path');
 const rollup = require('rollup');
-const { babel, getBabelOutputPlugin } = require('@rollup/plugin-babel');
+const { babel } = require('@rollup/plugin-babel');
 const { nodeResolve } = require('@rollup/plugin-node-resolve');
 const commonjs = require('@rollup/plugin-commonjs');
 const { unlinkAll } = require('../utils');
+
+const envs = {};
+process.argv.forEach(arg => {
+  const temp = /^--env.(.*?)=(.*?)$/g.exec(arg);
+  if (temp) {
+    envs[temp[1]] = temp[2];
+  }
+});
+console.log(envs);
+
+let output;
+if (envs.PACKAGE_ENV === 'prod') {
+  output = {
+    file: 'dist/bundle.js',
+    format: 'es',
+  }
+} else {
+  output = {
+    file: 'debug/bundle.js',
+    format: 'es',
+  }
+}
 
 const config = {
   input: 'src/main.ts',
@@ -33,10 +55,7 @@ async function createBundle() {
     const result = await rollup.rollup(config);
     // console.log('result', result);
     result.write({
-      output: {
-        file: 'debug/bundle.js',
-        format: 'es',
-      },
+      output,
     });
   } catch (error) {
     console.log('error', error);

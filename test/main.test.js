@@ -114,7 +114,7 @@ test('test multiple finally', () => {
   });
 })
 
-test('test catch', () => {
+test('test catch of reject', () => {
   let p = new PromisePolyfill((resolve, reject) => {
     setTimeout(() => {
       reject(1);
@@ -122,6 +122,15 @@ test('test catch', () => {
   });
   p.catch(error => {
     done.watch(() => expect(error).toBe(1));
+  });
+});
+
+test('test catch of Error', () => {
+  let p = new PromisePolyfill((resolve, reject) => {
+    throw new Error('12');
+  });
+  p.catch(error => {
+    done.watch(() => expect(error.message).toBe('12'));
   });
 });
 
@@ -138,12 +147,17 @@ test('test catch after then', () => {
   });
 });
 
-test('test catch of Error', () => {
+test('test catch after catch', () => {
   let p = new PromisePolyfill((resolve, reject) => {
-    throw new Error('12');
+    setTimeout(() => {
+      reject(1);
+    }, 10);
   });
   p.catch(error => {
-    done.watch(() => expect(error.message).toBe('12'));
+    done.watch(() => expect(error).toBe(2));
+    throw 2;
+  }).catch(error => {
+    done.watch(() => expect(error).toBe(2));
   });
 });
 
@@ -176,4 +190,20 @@ test('test chained catch after then', () => {
   }).catch(error => {
     done.watch(() => expect(error.message).toBe('3'));
   });
-})
+});
+
+test.only('test microtask', () => {
+  let count = 0;
+  let p = new PromisePolyfill((resolve) => {
+    count = count + 1;
+    resolve(1);
+  });
+  p.then(() => {
+    count = count + 4;
+  });
+  p.finally(() => {
+    count = count + 5;
+  });
+  count = count + 2;
+  done.watch(() => expect(count).toBe(3));
+});
