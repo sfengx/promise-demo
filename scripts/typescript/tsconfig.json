@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "allowJs": true,
+    "checkJs": true,
+    "outDir": "../../debug",
+    "rootDir": "../../src"
+  },
+  "files": [
+    "../../src/main.ts"
+  ]
+}
